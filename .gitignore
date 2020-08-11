@@ -7,3 +7,8 @@ install
 *.egg-info
 __pycache__
 *.json.bz2
+junk.*
+*.pdf
+*.npz
+auto
+latexmk-out

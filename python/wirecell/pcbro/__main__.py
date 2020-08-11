@@ -6,6 +6,19 @@ import os.path as osp
 import sys
 import json
 import click
+from wirecell import units
+
+import wirecell.pcbro.garfield as pcbgf
+
+def sourceme(source):
+    '''
+    Convert a tar file or directory path into a source
+    '''
+    if osp.splitext(source)[1] in ['.tar', '.tgz']:
+        return pcbgf.tar_source(source)
+    if osp.isdir(source):
+        return pcbgf.dir_source(source, ['ind'])
+    raise ValueError(f"Unsupported source: {source}")
 
 @click.group()
 @click.pass_context
@@ -16,39 +29,96 @@ def cli(ctx):
     ctx.ensure_object(dict)
 
 @cli.command("convert-garfield")
+@click.option("-o", "--origin", default="10.0*cm",
+              help="Set drift origin (give units, eg '10*cm').")
+@click.option("-s", "--speed", default="1.6*mm/us",
+              help="Set nominal drift speed (give untis, eg '1.6*mm/us').")
+@click.option("-n", "--normalization", default=0.0,
+              help="Set normalization: 0:none, <0:electrons, >0:multiplicative scale.  def=0")
+@click.option("-z", "--zero-wire-locs", default=[0.0,0.0,0.0], nargs=3, type=float,
+              help="Set location of zero wires.  def: 0 0 0")
+@click.option("-U", "--uslices", default="0,1",
+              help="Set which induction slices to use for U plane")
+@click.option("-V", "--vslices", default="0,1",
+              help="Set which induction slices to use for V plane")
+@click.option("-W", "--wslices", default="0,1",
+              help="Set which collection slices to use for W plane")
 @click.argument("garfield-fileset")
 @click.argument("wirecell-field-response-file")
-def convert_garfield(garfield_fileset, wirecell_field_response_file):
+def convert_garfield(origin, speed, normalization, zero_wire_locs,
+                     uslices, vslices, wslices,
+                     garfield_fileset, wirecell_field_response_file):
     '''
     Produce a WCT field file from tarfile of Garfield output text files.
 
+    Convert an archive of a Garfield fileset (zip, tar, tgz) into a
+    Wire Cell field response file (.json with optional .gz or .bz2
+    compression).
+
     See also same subcommand from wirecell-sigproc
     '''
-    import wirecell.pcbro.garfield as pcbgf
-    pcbgf.load(garfield_fileset)    
+    import wirecell.pcbro.garfield as gar
+    from wirecell.sigproc.response import rf1dtoschema
+    import wirecell.sigproc.response.persist as per
 
-@cli.command("convert-garfield-one")
+    origin = eval(origin, units.__dict__)
+    speed = eval(speed, units.__dict__)
+
+    uslices = list(map(int,uslices.split(',')))
+    vslices = list(map(int,vslices.split(',')))
+    wslices = list(map(int,wslices.split(',')))
+
+    ripem = gar.Ripem(sourceme(garfield_fileset))
+    sipem = gar.Sipem(ripem)
+
+    fr = sipem.inschema(speed, origin, uslices, vslices, wslices)
+    per.dump(wirecell_field_response_file, fr)
+
+    # rflist = sipem.asrflist(strategy)
+    # print("made %d response functions" % len(rflist))
+    # fr = rf1dtoschema(rflist, origin, speed)
+    # per.dump(wirecell_field_response_file, fr)
+
+
+@cli.command("convert-garfield-npz")
 @click.option("-o","--output",default=None, help="Output .npz file")
 @click.argument("datfile")
-def convert_garfield_one(output, datfile):
+def convert_garfield_npz(output, datfile):
     '''
     Convert one Garfield .dat file to a .npz file
     '''
-    import wirecell.pcbro.garfield as pcbgf
     if not output:
         output = os.path.splitext(os.path.basename(datfile))[0] + ".npz"
     pcbgf.dat2npz(datfile, output)    
 
+
+@cli.command("plot-garfield-micro-wires")
+@click.option("-o","--output", default="garfield-micro-wires.pdf", help="Output PDF file")
+@click.argument("source")
+def plot_garfield_micro_wires(output, source):
+    pcbgf.draw_file(source, output)
+
 @cli.command("plot-garfield")
 @click.option("-o","--output", default="garfield-plots.pdf", help="Output PDF file")
 @click.argument("source")
-def print_garfield(output, source):
-    import wirecell.pcbro.garfield as pcbgf
-    if osp.splitext(source) in ['.tar', '.tgz']:
-        source = pcbgf.tar_source(source)
-    elif osp.isdir(source):
-        source = pcbgf.dir_source(source, ['ind'])
+def plot_garfield(output, source):
+    '''Plot responses after parsing garfield, and applying integrating map.  
+
+    What you see should be reasonably what comes out as .json.bz2 with
+    convert-garfield.
+
+    '''
+    source = sourceme(source)
     pcbgf.plots(source, output)
+
+@cli.command("plot-garfield-check")
+@click.option("-o","--output", default="garfield-plots.pdf", help="Output PDF file")
+def plot_garfield_check(output):
+    '''
+    Make some artwork which "obviously" shows the integration map is correct.
+    '''
+    pcbgf.plots_geom(output)
+
 
 @cli.command("gen-wires")
 @click.argument("output-file")

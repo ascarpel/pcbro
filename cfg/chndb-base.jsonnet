@@ -16,7 +16,7 @@ function(params, anode, field, n, rms_cuts=[])
     // This sets the number of frequency-domain bins used in the noise
     // filtering.  It is not necessarily true that the time-domain
     // waveforms have the same number of ticks.  This must be non-zero.
-    nsamples: params.nf.nsamples,
+    nsamples:  params.daq.tick,
 
     // For MicroBooNE, channel groups is a 2D list.  Each element is
     // one group of channels which should be considered together for
@@ -38,7 +38,7 @@ function(params, anode, field, n, rms_cuts=[])
       // repeat values found here in subsequent entries unless you
       // wish to change them.
       {
-        channels: [std.range(0, 64*3)],
+        channels: std.range(1, 64*3),
         nominal_baseline: 2048.0,  // adc count
         gain_correction: 1.0,  // unitless
         response_offset: 0.0,  // ticks?

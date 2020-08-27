@@ -22,13 +22,14 @@ function(infile, outfile, nplanes=3, start=32, triggers=1, resp=pcbro.response_f
         pcbro.magnify("rawoutput", outfile, false, [orig], det.anode),
         pcbro.dumpframes("dumpframes")
     ]),
-    
+
     local sppipeline(outfile) = g.pipeline([
+        //pcbro.noisefilter(det),
         pcbro.sigproc(det),
-        pcbro.magnify("spoutput", outfile, true, ["gauss0", "wiener0", "threshold0"], det.anode),
+        pcbro.magnify("spoutput", outfile, true, ["raw0", "gauss0", "wiener0", "threshold0"], det.anode),
         pcbro.dumpframes("dumpframes")
     ]),
-    
+
     // Tag rules and fanpipe
     local fanout_tag_rules =
         [{ frame: { "": orig },
@@ -36,7 +37,7 @@ function(infile, outfile, nplanes=3, start=32, triggers=1, resp=pcbro.response_f
          { frame: { "": [ 'gauss0', 'wiener0', 'threshold0'] },
            trace: { } }
         ],
-    
+
     local backend(outfile, tag="", nplanes=3) = g.fan.sink(
         'FrameFanout',
         [rawpipeline(outfile), sppipeline(outfile)],

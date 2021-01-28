@@ -65,7 +65,26 @@ local tools = tools_maker(params);
                 fields: [ resp ]}},
         tools: tools_maker(self.params),
         anode: tools.anodes[0],
+
+        #Internal reference to the overridden parameters
+        local this = self,
+
+        local perfect = import 'chndb-base.jsonnet',
+        chndbobj : {
+          type: 'OmniChannelNoiseDB',
+          name: 'ocndbperfect%d' % this.anode.data.ident,
+          data: perfect(params, this.anode, this.tools.field, this.anode),
+          uses: [this.anode, this.tools.field],
+        },
     },
+
+    // Return a noise filter for detector
+    noisefilter(detector) :: {
+      local nf_maker = import "nf.jsonnet",
+      local nf = nf_maker(detector.anode, detector.chndbobj),
+      ret: nf.make_nf(detector.anode),
+    }.ret,
+
 
     // Return a sigproc node for detector
     sigproc(detector):: {

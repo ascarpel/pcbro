@@ -20,7 +20,7 @@ base {
 
     files: super.files {
         wires: "pcbro-wires.json.bz2",
-        // must provide "fields" array 
+        // must provide "fields" array
     },
 
     sim: super.sim {
@@ -37,4 +37,3 @@ base {
     },
 
 }
-

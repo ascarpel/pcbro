@@ -94,7 +94,38 @@ local tools = tools_maker(params);
         }, nin=1, nout=1),
         local digitizer = sim.digitizer(detector.anode, name="digitizer", tag="orig0"),
         ret: g.pipeline([drifter, bagger, ductor, reframer, digitizer])
+
     }.ret,
+
+
+    blipsource(detector) :: g.pnode({
+
+            local ar39spectrum = import "ar39.jsonnet",
+            local v = import "vector.jsonnet",
+
+            local bb = detector.params.det.bounds,
+            local vol = v.volume(v.frompoint(bb.tail), v.frompoint(bb.head)),
+
+            type: "BlipSource",
+            name: "ar39sim",
+            data: {
+                rng: wc.tn(detector.tools.random),
+
+                charge: ar39spectrum,
+
+                time: {
+                    type: "decay",
+                    start: 0,
+                    stop: 300,
+                    activity: 2,// detector.params.lar.ar39activity * detector.params.lar.density * vol,
+                },
+
+                position: {
+                    type: "box",
+                    extent: bb,
+                },
+            },
+    }, nin=0, nout=1),
 
     // return a magnify node
     magnify(name, filename, usetags, tags, anode ) :: g.pnode({
